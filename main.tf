@@ -1,6 +1,6 @@
 terraform {
   backend "s3" {
-    bucket = "terraform-updatebucket-sujeet"
+    bucket = "kaushal2118terraforminfra"
     key    = "us-west-1/terraform.tfstate"
     region = "us-west-1"
   }
@@ -211,10 +211,10 @@ module "eks" {
       desired_size   = var.eks_desired_size
       max_size       = var.eks_max_size
       min_size       = var.eks_min_size
-      instance_types = ["t3.medium"]
+      instance_types = ["t2.medium"]
       name           = "default"
       ami_type       = "AL2_x86_64"
-      key_name       = "practise1"
+      key_name       = "cloud"
     }
   }
 }
