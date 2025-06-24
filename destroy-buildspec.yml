@@ -1,0 +1,24 @@
+version: 0.2
+
+phases:
+  install:
+    commands:
+      - echo Installing dependencies...
+      - curl -o terraform.zip https://releases.hashicorp.com/terraform/1.7.5/terraform_1.7.5_linux_amd64.zip
+      - unzip terraform.zip
+      - mv terraform /usr/local/bin/
+      - terraform --version
+
+  pre_build:
+    commands:
+      - echo Initializing Terraform...
+      - terraform init
+
+  build:
+    commands:
+      - echo Destroying Terraform-managed infrastructure...
+      - terraform destroy -auto-approve
+
+artifacts:
+  files:
+    - '**/*'
