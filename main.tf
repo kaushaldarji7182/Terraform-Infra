@@ -10,6 +10,13 @@ provider "aws" {
   region = "us-west-1"
 }
 
+# Random suffix to avoid name conflicts
+resource "random_string" "suffix" {
+  length  = 5
+  special = false
+  upper   = false
+}
+
 data "aws_availability_zones" "available" {}
 
 resource "aws_vpc" "kaushal_vpc" {
@@ -108,8 +115,8 @@ resource "aws_route_table_association" "kaushal_private_2" {
 }
 
 resource "aws_security_group" "kaushal_eks_nodes" {
-  name        = "kaushal-eks-nodes"
-  description = "Allow all traffic for Kaushal's EKS nodes"
+  name        = "kaushal-eks-nodes-${random_string.suffix.result}"
+  description = "Allow all traffic for EKS nodes"
   vpc_id      = aws_vpc.kaushal_vpc.id
 
   ingress {
@@ -128,7 +135,7 @@ resource "aws_security_group" "kaushal_eks_nodes" {
 }
 
 resource "aws_security_group" "kaushal_rds" {
-  name        = "kaushal-rds"
+  name        = "kaushal-rds-${random_string.suffix.result}"
   description = "Allow MySQL access from EKS"
   vpc_id      = aws_vpc.kaushal_vpc.id
 
@@ -148,12 +155,12 @@ resource "aws_security_group" "kaushal_rds" {
 }
 
 resource "aws_db_subnet_group" "kaushal_rds" {
-  name       = "kaushal-db-subnet-group"
+  name       = "kaushal-db-subnet-group-${random_string.suffix.result}"
   subnet_ids = [aws_subnet.kaushal_private_1.id, aws_subnet.kaushal_private_2.id]
 }
 
 resource "aws_db_instance" "kaushal_rds" {
-  identifier              = "kaushal-catalog-db"
+  identifier              = "kaushal-catalog-db-${random_string.suffix.result}"
   instance_class          = "db.t3.micro"
   engine                  = "mysql"
   username                = var.db_username
@@ -167,7 +174,7 @@ resource "aws_db_instance" "kaushal_rds" {
 }
 
 resource "aws_dynamodb_table" "kaushal_cart" {
-  name           = "kaushal-cart"
+  name           = "kaushal-cart-${random_string.suffix.result}"
   hash_key       = "id"
   billing_mode   = "PROVISIONED"
   read_capacity  = 5
@@ -181,14 +188,11 @@ resource "aws_dynamodb_table" "kaushal_cart" {
 
 module "eks" {
   source          = "terraform-aws-modules/eks/aws"
-  cluster_name    = var.eks_cluster_name
+  cluster_name    = "kaushal-cluster-${random_string.suffix.result}"
   cluster_version = "1.29"
-  vpc_id          = aws_vpc.kaushal_vpc.id
 
-  subnet_ids = [
-    aws_subnet.kaushal_private_1.id,
-    aws_subnet.kaushal_private_2.id
-  ]
+  vpc_id     = aws_vpc.kaushal_vpc.id
+  subnet_ids = [aws_subnet.kaushal_private_1.id, aws_subnet.kaushal_private_2.id]
 
   eks_managed_node_groups = {
     default = {
@@ -196,7 +200,7 @@ module "eks" {
       max_size       = var.eks_max_size
       min_size       = var.eks_min_size
       instance_types = ["t2.medium"]
-      name           = "kaushal-default-ng"
+      name           = "kaushal-default-ng-${random_string.suffix.result}"
       ami_type       = "AL2_x86_64"
       key_name       = "practise1"
     }
