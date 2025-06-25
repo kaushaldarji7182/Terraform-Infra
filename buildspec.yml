@@ -2,8 +2,6 @@ version: 0.2
 
 phases:
   install:
-    runtime-versions:
-      python: 3.11
     commands:
       - echo Installing Terraform...
       - curl -o terraform.zip https://releases.hashicorp.com/terraform/1.8.4/terraform_1.8.4_linux_amd64.zip
@@ -20,11 +18,12 @@ phases:
     commands:
       - echo Planning Terraform...
       - terraform plan
+      - echo Applying Terraform...
+      - terraform apply -auto-approve
 
   post_build:
     commands:
-      - echo Applying Terraform...
-      - terraform apply -auto-approve
+      - echo Terraform execution complete.
 
 artifacts:
   files:
