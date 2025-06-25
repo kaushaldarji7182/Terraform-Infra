@@ -16,7 +16,7 @@ resource "random_string" "suffix" {
   upper   = false
 
   keepers = {
-    timestamp = timestamp() # Regenerate on every apply
+    timestamp = timestamp()
   }
 }
 
@@ -174,8 +174,7 @@ resource "aws_db_instance" "kaushal_rds" {
   publicly_accessible     = false
   backup_retention_period = 1
   db_name                 = "catalogdb"
-
-  skip_final_snapshot     = true  # ✅ Important for clean destroy
+  skip_final_snapshot     = true
 }
 
 resource "aws_dynamodb_table" "kaushal_cart" {
