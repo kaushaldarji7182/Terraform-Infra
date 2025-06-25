@@ -1,13 +1,13 @@
 terraform {
   backend "s3" {
-    bucket = "terraform-sujeet-update"
-    key    = "us-west-1/terraform.tfstate"
-    region = "us-west-1"
+    bucket = "terraformbucket2118"
+    key    = "ap-south-1/terraform.tfstate"
+    region = "ap-south-1"
   }
 }
 
 provider "aws" {
-  region = "us-west-1"
+  region = "ap-south-1"
 }
 
 data "aws_availability_zones" "available" {}
