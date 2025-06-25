@@ -10,7 +10,6 @@ provider "aws" {
   region = "us-west-1"
 }
 
-# Random suffix to avoid name conflicts
 resource "random_string" "suffix" {
   length  = 5
   special = false
@@ -115,7 +114,7 @@ resource "aws_route_table_association" "kaushal_private_2" {
 }
 
 resource "aws_security_group" "kaushal_eks_nodes" {
-  name        = "kaushal-eks-nodes-${random_string.suffix.result}"
+  name        = "eks-nodes-${random_string.suffix.result}"
   description = "Allow all traffic for EKS nodes"
   vpc_id      = aws_vpc.kaushal_vpc.id
 
@@ -135,7 +134,7 @@ resource "aws_security_group" "kaushal_eks_nodes" {
 }
 
 resource "aws_security_group" "kaushal_rds" {
-  name        = "kaushal-rds-${random_string.suffix.result}"
+  name        = "rds-sg-${random_string.suffix.result}"
   description = "Allow MySQL access from EKS"
   vpc_id      = aws_vpc.kaushal_vpc.id
 
@@ -160,7 +159,7 @@ resource "aws_db_subnet_group" "kaushal_rds" {
 }
 
 resource "aws_db_instance" "kaushal_rds" {
-  identifier              = "kaushal-catalog-db-${random_string.suffix.result}"
+  identifier              = "kaushal-db-${random_string.suffix.result}"
   instance_class          = "db.t3.micro"
   engine                  = "mysql"
   username                = var.db_username
@@ -170,7 +169,7 @@ resource "aws_db_instance" "kaushal_rds" {
   vpc_security_group_ids  = [aws_security_group.kaushal_rds.id]
   publicly_accessible     = false
   backup_retention_period = 1
-  db_name                 = "kaushalcatalogdb"
+  db_name                 = "catalogdb"
 }
 
 resource "aws_dynamodb_table" "kaushal_cart" {
@@ -191,6 +190,9 @@ module "eks" {
   cluster_name    = "kaushal-cluster-${random_string.suffix.result}"
   cluster_version = "1.29"
 
+  cluster_endpoint_public_access = true
+  enable_irsa                    = true
+
   vpc_id     = aws_vpc.kaushal_vpc.id
   subnet_ids = [aws_subnet.kaushal_private_1.id, aws_subnet.kaushal_private_2.id]
 
@@ -200,12 +202,9 @@ module "eks" {
       max_size       = var.eks_max_size
       min_size       = var.eks_min_size
       instance_types = ["t2.medium"]
-      name           = "kaushal-default-ng-${random_string.suffix.result}"
+      name           = "ng-${random_string.suffix.result}"
       ami_type       = "AL2_x86_64"
       key_name       = "practise1"
     }
   }
-
-  cluster_endpoint_public_access = true
-  enable_irsa                    = true
 }
