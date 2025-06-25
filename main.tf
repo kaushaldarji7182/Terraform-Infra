@@ -14,6 +14,10 @@ resource "random_string" "suffix" {
   length  = 5
   special = false
   upper   = false
+
+  keepers = {
+    timestamp = timestamp() # Regenerate on every apply
+  }
 }
 
 data "aws_availability_zones" "available" {}
@@ -170,6 +174,8 @@ resource "aws_db_instance" "kaushal_rds" {
   publicly_accessible     = false
   backup_retention_period = 1
   db_name                 = "catalogdb"
+
+  skip_final_snapshot     = true  # ✅ Important for clean destroy
 }
 
 resource "aws_dynamodb_table" "kaushal_cart" {
