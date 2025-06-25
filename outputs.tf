@@ -9,3 +9,4 @@ output "rds_endpoint" {
 output "dynamodb_table_name" {
   value = aws_dynamodb_table.kaushal_cart.name
 }
+
