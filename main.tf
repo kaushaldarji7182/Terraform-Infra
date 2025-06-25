@@ -1,8 +1,14 @@
 terraform {
   backend "s3" {
     bucket = "kaushal2118terraformfinalbucket"
-    key    = "us-west-1/terraform.tfstate"
+    key    = "terraform.tfstate"
     region = "us-west-1"
+  }
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
   }
 }
 
@@ -10,103 +16,69 @@ provider "aws" {
   region = "us-west-1"
 }
 
-data "aws_availability_zones" "available" {}
-
 resource "aws_vpc" "kaushal2118v3" {
-  cidr_block           = "10.0.0.0/16"
-  enable_dns_support   = true
-  enable_dns_hostnames = true
+  cidr_block = "10.0.0.0/16"
+  tags = {
+    Name = "kaushal-vpc-kaushal2118v3"
+  }
+}
+
+resource "aws_subnet" "public_kaushal2118v3" {
+  count             = 2
+  vpc_id            = aws_vpc.kaushal2118v3.id
+  cidr_block        = cidrsubnet("10.0.1.0/24", 4, count.index)
+  map_public_ip_on_launch = true
+  availability_zone = ["us-west-1a", "us-west-1b"][count.index]
+  tags = {
+    Name = "public-subnet-kaushal2118v3-${count.index}"
+  }
+}
+
+resource "aws_subnet" "private_kaushal2118v3" {
+  count             = 2
+  vpc_id            = aws_vpc.kaushal2118v3.id
+  cidr_block        = cidrsubnet("10.0.2.0/24", 4, count.index)
+  availability_zone = ["us-west-1a", "us-west-1b"][count.index]
+  tags = {
+    Name = "private-subnet-kaushal2118v3-${count.index}"
+  }
 }
 
 resource "aws_internet_gateway" "kaushal2118v3" {
   vpc_id = aws_vpc.kaushal2118v3.id
-}
-
-resource "aws_subnet" "public_1_kaushal2118v3" {
-  vpc_id                  = aws_vpc.kaushal2118v3.id
-  cidr_block              = "10.0.1.0/24"
-  availability_zone       = data.aws_availability_zones.available.names[0]
-  map_public_ip_on_launch = true
-}
-
-resource "aws_subnet" "public_2_kaushal2118v3" {
-  vpc_id                  = aws_vpc.kaushal2118v3.id
-  cidr_block              = "10.0.2.0/24"
-  availability_zone       = data.aws_availability_zones.available.names[1]
-  map_public_ip_on_launch = true
-}
-
-resource "aws_subnet" "private_1_kaushal2118v3" {
-  vpc_id            = aws_vpc.kaushal2118v3.id
-  cidr_block        = "10.0.3.0/24"
-  availability_zone = data.aws_availability_zones.available.names[0]
-}
-
-resource "aws_subnet" "private_2_kaushal2118v3" {
-  vpc_id            = aws_vpc.kaushal2118v3.id
-  cidr_block        = "10.0.4.0/24"
-  availability_zone = data.aws_availability_zones.available.names[1]
-}
-
-resource "aws_eip" "nat_kaushal2118v3" {
-  domain = "vpc"
-}
-
-resource "aws_nat_gateway" "kaushal2118v3" {
-  allocation_id = aws_eip.nat_kaushal2118v3.id
-  subnet_id     = aws_subnet.public_1_kaushal2118v3.id
-  depends_on    = [aws_internet_gateway.kaushal2118v3]
+  tags = {
+    Name = "igw-kaushal2118v3"
+  }
 }
 
 resource "aws_route_table" "public_kaushal2118v3" {
   vpc_id = aws_vpc.kaushal2118v3.id
+  tags = {
+    Name = "public-rt-kaushal2118v3"
+  }
 }
 
-resource "aws_route" "public_route_kaushal2118v3" {
+resource "aws_route" "internet_kaushal2118v3" {
   route_table_id         = aws_route_table.public_kaushal2118v3.id
   destination_cidr_block = "0.0.0.0/0"
   gateway_id             = aws_internet_gateway.kaushal2118v3.id
 }
 
-resource "aws_route_table_association" "public_1_kaushal2118v3" {
-  subnet_id      = aws_subnet.public_1_kaushal2118v3.id
+resource "aws_route_table_association" "public_kaushal2118v3" {
+  count          = 2
+  subnet_id      = aws_subnet.public_kaushal2118v3[count.index].id
   route_table_id = aws_route_table.public_kaushal2118v3.id
 }
 
-resource "aws_route_table_association" "public_2_kaushal2118v3" {
-  subnet_id      = aws_subnet.public_2_kaushal2118v3.id
-  route_table_id = aws_route_table.public_kaushal2118v3.id
-}
-
-resource "aws_route_table" "private_kaushal2118v3" {
-  vpc_id = aws_vpc.kaushal2118v3.id
-}
-
-resource "aws_route" "private_kaushal2118v3" {
-  route_table_id         = aws_route_table.private_kaushal2118v3.id
-  destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = aws_nat_gateway.kaushal2118v3.id
-}
-
-resource "aws_route_table_association" "private_1_kaushal2118v3" {
-  subnet_id      = aws_subnet.private_1_kaushal2118v3.id
-  route_table_id = aws_route_table.private_kaushal2118v3.id
-}
-
-resource "aws_route_table_association" "private_2_kaushal2118v3" {
-  subnet_id      = aws_subnet.private_2_kaushal2118v3.id
-  route_table_id = aws_route_table.private_kaushal2118v3.id
-}
-
-resource "aws_security_group" "eks_nodes_kaushal2118v3" {
-  name        = "eks-nodes-kaushal2118v3"
-  description = "Allow all traffic for EKS nodes"
+resource "aws_security_group" "rds_sg_kaushal2118v3" {
+  name        = "rds-sg-kaushal2118v3"
+  description = "Allow MySQL traffic"
   vpc_id      = aws_vpc.kaushal2118v3.id
 
   ingress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
+    from_port   = 3306
+    to_port     = 3306
+    protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
 
@@ -116,59 +88,74 @@ resource "aws_security_group" "eks_nodes_kaushal2118v3" {
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"]
   }
+
+  tags = {
+    Name = "rds-sg-kaushal2118v3"
+  }
 }
 
-resource "aws_db_subnet_group" "rds_kaushal2118v3" {
-  name       = "kaushal-db-subnet-group-kaushal2118v3"
-  subnet_ids = [aws_subnet.private_1_kaushal2118v3.id, aws_subnet.private_2_kaushal2118v3.id]
+resource "aws_db_subnet_group" "kaushal2118v3" {
+  name       = "db-subnet-group-kaushal2118v3"
+  subnet_ids = aws_subnet.private_kaushal2118v3[*].id
+
+  tags = {
+    Name = "DB subnet group kaushal2118v3"
+  }
 }
 
 resource "aws_db_instance" "kaushal2118v3" {
-  identifier              = "kaushal-catalog-db-kaushal2118v3"
-  instance_class          = "db.t3.micro"
-  engine                  = "mysql"
-  username                = "admin"
-  password                = "admin1234"
-  allocated_storage       = 20
-  skip_final_snapshot     = true
-  db_subnet_group_name    = aws_db_subnet_group.rds_kaushal2118v3.name
-  vpc_security_group_ids  = [aws_security_group.eks_nodes_kaushal2118v3.id]
-  publicly_accessible     = false
-  backup_retention_period = 0
-  db_name                 = "catalogdb"
+  identifier             = "kaushal-catalog-db-kaushal2118v3"
+  engine                 = "mysql"
+  instance_class         = "db.t3.micro"
+  username               = "admin"
+  password               = "Admin12345!"
+  allocated_storage      = 20
+  db_subnet_group_name   = aws_db_subnet_group.kaushal2118v3.name
+  vpc_security_group_ids = [aws_security_group.rds_sg_kaushal2118v3.id]
+  skip_final_snapshot    = true
+  publicly_accessible    = false
+  multi_az               = false
+
+  tags = {
+    Name = "kaushal-rds-kaushal2118v3"
+  }
 }
 
 resource "aws_dynamodb_table" "cart_kaushal2118v3" {
-  name           = "cart-kaushal2118v3"
-  hash_key       = "id"
-  billing_mode   = "PROVISIONED"
-  read_capacity  = 5
-  write_capacity = 5
+  name         = "cart-kaushal2118v3"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "id"
 
   attribute {
     name = "id"
     type = "S"
   }
+
+  tags = {
+    Name = "cart-table-kaushal2118v3"
+  }
 }
 
 module "eks" {
   source          = "terraform-aws-modules/eks/aws"
+  version         = "20.37.1"
   cluster_name    = "kaushal-cluster-kaushal2118v3"
   cluster_version = "1.29"
+  subnet_ids      = aws_subnet.public_kaushal2118v3[*].id
   vpc_id          = aws_vpc.kaushal2118v3.id
-  subnet_ids      = [
-    aws_subnet.private_1_kaushal2118v3.id,
-    aws_subnet.private_2_kaushal2118v3.id
-  ]
-  cluster_endpoint_public_access = true
 
   eks_managed_node_groups = {
     default = {
-      desired_size   = 2
-      max_size       = 3
-      min_size       = 1
-      instance_types = ["t2.medium"]
-      name           = "kaushal-node-group-kaushal2118v3"
+      desired_size = 1
+      max_size     = 2
+      min_size     = 1
+
+      instance_types = ["t3.medium"]
     }
+  }
+
+  tags = {
+    Environment = "dev"
+    Project     = "kaushal2118v3"
   }
 }
