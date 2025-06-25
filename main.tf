@@ -1,6 +1,6 @@
 terraform {
   backend "s3" {
-    bucket = "terraform-kaushal-update"
+    bucket = "terraform-sujeet-update"
     key    = "us-west-1/terraform.tfstate"
     region = "us-west-1"
   }
@@ -8,15 +8,6 @@ terraform {
 
 provider "aws" {
   region = "us-west-1"
-}
-
-resource "random_string" "suffix" {
-  length  = 5
-  upper   = false
-  special = false
-  keepers = {
-    timestamp = timestamp()
-  }
 }
 
 data "aws_availability_zones" "available" {}
@@ -57,59 +48,56 @@ resource "aws_subnet" "kaushal_private_2" {
   availability_zone = data.aws_availability_zones.available.names[1]
 }
 
-resource "aws_eip" "kaushal_nat" {
+resource "aws_eip" "kaushal_nat_eip" {
   domain = "vpc"
 }
 
 resource "aws_nat_gateway" "kaushal_nat" {
-  allocation_id = aws_eip.kaushal_nat.id
+  allocation_id = aws_eip.kaushal_nat_eip.id
   subnet_id     = aws_subnet.kaushal_public_1.id
-  depends_on    = [aws_internet_gateway.kaushal_igw]
 }
 
-resource "aws_route_table" "kaushal_public" {
+resource "aws_route_table" "kaushal_public_rt" {
   vpc_id = aws_vpc.kaushal_vpc.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.kaushal_igw.id
+  }
 }
 
-resource "aws_route" "kaushal_public_route" {
-  route_table_id         = aws_route_table.kaushal_public.id
-  destination_cidr_block = "0.0.0.0/0"
-  gateway_id             = aws_internet_gateway.kaushal_igw.id
+resource "aws_route_table" "kaushal_private_rt" {
+  vpc_id = aws_vpc.kaushal_vpc.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.kaushal_nat.id
+  }
 }
 
-resource "aws_route_table_association" "kaushal_public_assoc_1" {
+resource "aws_route_table_association" "kaushal_pub1_assoc" {
   subnet_id      = aws_subnet.kaushal_public_1.id
-  route_table_id = aws_route_table.kaushal_public.id
+  route_table_id = aws_route_table.kaushal_public_rt.id
 }
 
-resource "aws_route_table_association" "kaushal_public_assoc_2" {
+resource "aws_route_table_association" "kaushal_pub2_assoc" {
   subnet_id      = aws_subnet.kaushal_public_2.id
-  route_table_id = aws_route_table.kaushal_public.id
+  route_table_id = aws_route_table.kaushal_public_rt.id
 }
 
-resource "aws_route_table" "kaushal_private" {
-  vpc_id = aws_vpc.kaushal_vpc.id
-}
-
-resource "aws_route" "kaushal_private_route" {
-  route_table_id         = aws_route_table.kaushal_private.id
-  destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = aws_nat_gateway.kaushal_nat.id
-}
-
-resource "aws_route_table_association" "kaushal_private_assoc_1" {
+resource "aws_route_table_association" "kaushal_priv1_assoc" {
   subnet_id      = aws_subnet.kaushal_private_1.id
-  route_table_id = aws_route_table.kaushal_private.id
+  route_table_id = aws_route_table.kaushal_private_rt.id
 }
 
-resource "aws_route_table_association" "kaushal_private_assoc_2" {
+resource "aws_route_table_association" "kaushal_priv2_assoc" {
   subnet_id      = aws_subnet.kaushal_private_2.id
-  route_table_id = aws_route_table.kaushal_private.id
+  route_table_id = aws_route_table.kaushal_private_rt.id
 }
 
 resource "aws_security_group" "kaushal_eks_nodes" {
-  name        = "kaushal-eks-nodes-${random_string.suffix.result}"
-  description = "EKS Node SG"
+  name        = "kaushal-eks-nodes-final"
+  description = "Allow all traffic for EKS nodes"
   vpc_id      = aws_vpc.kaushal_vpc.id
 
   ingress {
@@ -128,8 +116,8 @@ resource "aws_security_group" "kaushal_eks_nodes" {
 }
 
 resource "aws_security_group" "kaushal_rds" {
-  name        = "kaushal-rds-sg-${random_string.suffix.result}"
-  description = "RDS SG"
+  name        = "kaushal-rds-sg-final"
+  description = "Allow MySQL from EKS"
   vpc_id      = aws_vpc.kaushal_vpc.id
 
   ingress {
@@ -148,27 +136,27 @@ resource "aws_security_group" "kaushal_rds" {
 }
 
 resource "aws_db_subnet_group" "kaushal_rds" {
-  name       = "kaushal-db-subnet-group-${random_string.suffix.result}"
+  name       = "kaushal-db-subnet-group-final"
   subnet_ids = [aws_subnet.kaushal_private_1.id, aws_subnet.kaushal_private_2.id]
 }
 
 resource "aws_db_instance" "kaushal_rds" {
-  identifier              = "kaushal-catalog-db-${random_string.suffix.result}"
-  engine                  = "mysql"
+  identifier              = "kaushal-catalog-db-final"
   instance_class          = "db.t3.micro"
-  allocated_storage       = 20
-  db_name                 = "catalogdb"
+  engine                  = "mysql"
   username                = var.db_username
   password                = var.db_password
-  vpc_security_group_ids  = [aws_security_group.kaushal_rds.id]
+  allocated_storage       = 20
   db_subnet_group_name    = aws_db_subnet_group.kaushal_rds.name
+  vpc_security_group_ids  = [aws_security_group.kaushal_rds.id]
   publicly_accessible     = false
   backup_retention_period = 1
+  db_name                 = "catalogdb"
   skip_final_snapshot     = true
 }
 
 resource "aws_dynamodb_table" "kaushal_cart" {
-  name           = "kaushal-cart-${random_string.suffix.result}"
+  name           = "kaushal-cart-final"
   hash_key       = "id"
   billing_mode   = "PROVISIONED"
   read_capacity  = 5
@@ -182,24 +170,26 @@ resource "aws_dynamodb_table" "kaushal_cart" {
 
 module "eks" {
   source          = "terraform-aws-modules/eks/aws"
-  cluster_name    = "kaushal-cluster-${random_string.suffix.result}"
+  version         = "20.8.4"
+  cluster_name    = "kaushal-cluster-final"
   cluster_version = "1.29"
+  vpc_id          = aws_vpc.kaushal_vpc.id
+
+  subnet_ids = [
+    aws_subnet.kaushal_private_1.id,
+    aws_subnet.kaushal_private_2.id
+  ]
 
   cluster_endpoint_public_access = true
-  enable_irsa                    = true
-
-  vpc_id     = aws_vpc.kaushal_vpc.id
-  subnet_ids = [aws_subnet.kaushal_private_1.id, aws_subnet.kaushal_private_2.id]
 
   eks_managed_node_groups = {
     default = {
+      name           = "kaushal-node-group-final"
       desired_size   = var.eks_desired_size
       max_size       = var.eks_max_size
       min_size       = var.eks_min_size
       instance_types = ["t2.medium"]
-      ami_type       = "AL2_x86_64"
       key_name       = "practise1"
-      name           = "kaushal-ng-${random_string.suffix.result}"
     }
   }
 }
