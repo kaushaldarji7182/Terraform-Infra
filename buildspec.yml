@@ -1,31 +1,42 @@
-version: 0.2
+provider "aws" {
+  region = "us-west-1"
+}
 
-phases:
-  install:
-    runtime-versions:
-      python: 3.11
-    commands:
-      - echo Installing Terraform...
-      - curl -o terraform.zip https://releases.hashicorp.com/terraform/1.8.4/terraform_1.8.4_linux_amd64.zip
-      - unzip terraform.zip
-      - mv terraform /usr/local/bin/
-      - terraform version
+module "eks" {
+  source          = "terraform-aws-modules/eks/aws"
+  cluster_name    = "terraform-cluster"
+  cluster_version = "1.29"
+  subnet_ids      = module.vpc.private_subnets
+  vpc_id          = module.vpc.vpc_id
 
-  pre_build:
-    commands:
-      - echo Initializing Terraform...
-      - terraform init
+  eks_managed_node_groups = {
+    node-group-1 = {
+      instance_types = ["t2.medium"]
+      min_size       = 1
+      max_size       = 2
+      desired_size   = 1
+    }
 
-  build:
-    commands:
-      - echo Planning Terraform...
-      - terraform plan
+    node-group-2 = {
+      instance_types = ["t2.medium"]
+      min_size       = 1
+      max_size       = 2
+      desired_size   = 1
+    }
+  }
 
-  post_build:
-    commands:
-      - echo Applying Terraform...
-      - terraform apply -auto-approve
+  enable_irsa = true
+}
 
-artifacts:
-  files:
-    - '**/*'
+module "vpc" {
+  source  = "terraform-aws-modules/vpc/aws"
+  name    = "terraform-vpc"
+  cidr    = "10.0.0.0/16"
+
+  azs             = ["us-west-1a", "us-west-1b"]
+  private_subnets = ["10.0.1.0/24", "10.0.2.0/24"]
+  public_subnets  = ["10.0.3.0/24", "10.0.4.0/24"]
+
+  enable_nat_gateway = true
+  single_nat_gateway = true
+}
