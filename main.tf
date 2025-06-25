@@ -1,6 +1,6 @@
 terraform {
   backend "s3" {
-    bucket = "kaushal2118terraforminfra"
+    bucket = "terraform-sujeet-update"
     key    = "us-west-1/terraform.tfstate"
     region = "us-west-1"
   }
@@ -214,7 +214,7 @@ module "eks" {
       instance_types = ["t2.medium"]
       name           = "default"
       ami_type       = "AL2_x86_64"
-      key_name       = "cloud"
+      key_name       = "practise1"
     }
   }
 }
