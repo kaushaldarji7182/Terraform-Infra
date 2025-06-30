@@ -1,6 +1,6 @@
 terraform {
   backend "s3" {
-    bucket = "my-tf-state-bucket15"
+    bucket = "kaushal2118bucketmumbai"
     key    = "us-west-1/terraform.tfstate"
     region = "us-west-1"
   }
@@ -199,7 +199,7 @@ module "eks" {
       instance_types = ["t3.medium"]
       name           = "default"
       ami_type       = "AL2_x86_64"
-      key_name       = "bhargav1"
+      key_name       = "cloud"
     }
   }
 }
